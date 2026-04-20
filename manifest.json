@@ -1,6 +1,6 @@
 {
   "name": "prometheus_exporter",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Embedded Prometheus metrics exporter for VillageSQL",
   "author": "VillageSQL Community",
   "license": "GPL-2.0"

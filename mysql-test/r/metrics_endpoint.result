@@ -1,0 +1,18 @@
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19111;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+SHOW VARIABLES LIKE 'prometheus_exporter.enabled';
+Variable_name	Value
+prometheus_exporter.enabled	ON
+has mysql_global_status_ metrics: 1
+has mysql_global_variables_ metrics: 1
+has mysql_global_status_uptime: 1
+# Test 404 for unknown paths
+GET /notfound: 404
+# Verify scrape counter incremented
+SHOW GLOBAL STATUS LIKE 'prometheus_exporter.requests_total';
+Variable_name	Value
+prometheus_exporter.requests_total	NUM
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

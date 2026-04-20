@@ -1,0 +1,24 @@
+# Install prometheus_exporter extension
+INSTALL EXTENSION prometheus_exporter;
+# Verify system variables exist with correct defaults
+SHOW VARIABLES LIKE 'prometheus_exporter%';
+Variable_name	Value
+prometheus_exporter.bind_address	127.0.0.1
+prometheus_exporter.enabled	OFF
+prometheus_exporter.port	9104
+# Enable the exporter on a test port
+SET GLOBAL prometheus_exporter.port = 19109;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+# Fetch /metrics and verify it returns a non-empty response
+HTTP status: 200 OK
+Response body: non-empty
+# Verify metrics output contains expected prefixes
+has mysql_global_status_ metrics: 1
+has mysql_global_variables_ metrics: 1
+# Disable the exporter
+SET GLOBAL prometheus_exporter.enabled = OFF;
+# Verify the port is no longer listening
+Port no longer listening: OK
+# Uninstall extension
+UNINSTALL EXTENSION prometheus_exporter;

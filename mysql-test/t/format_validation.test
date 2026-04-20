@@ -1,0 +1,55 @@
+# =============================================================================
+# format_validation.test -- Validates Prometheus exposition format correctness
+#
+# Verifies that every non-comment, non-empty line in /metrics output has the
+# form:
+#   metric_name<optional_labels> numeric_value
+# where numeric_value matches the Prometheus exposition format (integer,
+# float, NaN, +Inf, -Inf).
+# =============================================================================
+
+--source include/not_windows.inc
+
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19112;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+
+--echo # Fetching and validating /metrics output format
+--perl
+use strict;
+use warnings;
+
+my $output = `curl -s http://127.0.0.1:19112/metrics`;
+my @lines = split /\n/, $output;
+my $errors = 0;
+my $metrics_count = 0;
+
+for my $line (@lines) {
+  next if $line =~ /^\s*$/;
+  next if $line =~ /^#/;
+  # metric_name[{labels}] value
+  if ($line =~ /^[a-z_][a-z0-9_]*(?:\{[^}]*\})? (.+)$/) {
+    my $value = $1;
+    $metrics_count++;
+    unless ($value =~ /^(-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|NaN|\+Inf|-Inf)$/) {
+      print "FORMAT ERROR: non-numeric value '$value' in: $line\n";
+      $errors++;
+    }
+  } else {
+    print "FORMAT ERROR: unrecognized line: $line\n";
+    $errors++;
+  }
+}
+
+if ($errors == 0 && $metrics_count > 0) {
+  print "OK: format validation passed\n";
+} elsif ($metrics_count == 0) {
+  print "ERROR: no metrics found in output\n";
+} else {
+  print "FAIL: $errors format errors found in $metrics_count metrics\n";
+}
+EOF
+
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

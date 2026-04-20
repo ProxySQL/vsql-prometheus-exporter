@@ -1,0 +1,9 @@
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19113;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+has mysql_global_variables_max_connections: 1
+has mysql_global_variables_innodb_buffer_pool_size: 1
+mysql_global_variables_max_connections is numeric: 1
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

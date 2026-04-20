@@ -1,0 +1,74 @@
+# =============================================================================
+# basic.test -- Prometheus Exporter Extension: Install/Uninstall Lifecycle
+#
+# Verifies:
+# - Extension can be installed and uninstalled
+# - System variables (enabled, port, bind_address) are registered with correct defaults
+# - Enabling the extension starts the HTTP listener
+# - GET /metrics returns HTTP 200 with non-empty body
+# - Disabling the extension stops the listener
+# =============================================================================
+
+--source include/not_windows.inc
+
+--echo # Install prometheus_exporter extension
+INSTALL EXTENSION prometheus_exporter;
+
+--echo # Verify system variables exist with correct defaults
+SHOW VARIABLES LIKE 'prometheus_exporter%';
+
+--echo # Enable the exporter on a test port
+SET GLOBAL prometheus_exporter.port = 19109;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+
+--echo # Fetch /metrics and verify it returns a non-empty response
+--perl
+use strict;
+use warnings;
+my $response = `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:19109/metrics`;
+chomp $response;
+if ($response eq '200') {
+  print "HTTP status: 200 OK\n";
+} else {
+  print "UNEXPECTED HTTP status: $response\n";
+}
+my $body = `curl -s http://127.0.0.1:19109/metrics`;
+if (length($body) > 0) {
+  print "Response body: non-empty\n";
+} else {
+  print "Response body: EMPTY (unexpected)\n";
+}
+EOF
+
+--echo # Verify metrics output contains expected prefixes
+--perl
+use strict;
+use warnings;
+my $body = `curl -s http://127.0.0.1:19109/metrics`;
+my $has_status   = ($body =~ /^mysql_global_status_/m)    ? 1 : 0;
+my $has_vars     = ($body =~ /^mysql_global_variables_/m) ? 1 : 0;
+print "has mysql_global_status_ metrics: $has_status\n";
+print "has mysql_global_variables_ metrics: $has_vars\n";
+EOF
+
+--echo # Disable the exporter
+SET GLOBAL prometheus_exporter.enabled = OFF;
+
+--echo # Verify the port is no longer listening
+--perl
+use strict;
+use warnings;
+# Give the thread a moment to stop
+sleep(1);
+my $response = `curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://127.0.0.1:19109/metrics 2>/dev/null`;
+chomp $response;
+if ($response eq '000' || $response eq '') {
+  print "Port no longer listening: OK\n";
+} else {
+  print "UNEXPECTED: port still responding with HTTP $response\n";
+}
+EOF
+
+--echo # Uninstall extension
+UNINSTALL EXTENSION prometheus_exporter;

@@ -1,0 +1,34 @@
+# =============================================================================
+# global_variables.test -- Prometheus Exporter: SHOW GLOBAL VARIABLES collector
+#
+# Verifies that mysql_global_variables_ metrics are exported for known
+# numeric system variables (max_connections, innodb_buffer_pool_size).
+# =============================================================================
+
+--source include/not_windows.inc
+
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19113;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+
+--perl
+use strict;
+use warnings;
+my $body = `curl -s http://127.0.0.1:19113/metrics`;
+print +($body =~ /^mysql_global_variables_max_connections /m)
+  ? "has mysql_global_variables_max_connections: 1\n"
+  : "has mysql_global_variables_max_connections: 0\n";
+print +($body =~ /^mysql_global_variables_innodb_buffer_pool_size /m)
+  ? "has mysql_global_variables_innodb_buffer_pool_size: 1\n"
+  : "has mysql_global_variables_innodb_buffer_pool_size: 0\n";
+# Verify the value of max_connections is a positive integer
+if ($body =~ /^mysql_global_variables_max_connections (\d+)/m) {
+  print "mysql_global_variables_max_connections is numeric: 1\n";
+} else {
+  print "mysql_global_variables_max_connections is numeric: 0\n";
+}
+EOF
+
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

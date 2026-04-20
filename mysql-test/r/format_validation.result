@@ -1,0 +1,8 @@
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19112;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+# Fetching and validating /metrics output format
+OK: format validation passed
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

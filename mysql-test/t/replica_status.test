@@ -1,0 +1,36 @@
+# =============================================================================
+# replica_status.test -- Prometheus Exporter: SHOW REPLICA STATUS collector
+#
+# On a non-replica server SHOW REPLICA STATUS returns no rows, so no
+# mysql_replica_* lines should appear in the output.
+# Other metrics (global status) must still be present.
+# =============================================================================
+
+--source include/not_windows.inc
+
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19116;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+
+--echo # On a non-replica server, no mysql_replica_ metrics should appear
+--perl
+use strict;
+use warnings;
+my $body = `curl -s http://127.0.0.1:19116/metrics`;
+my @replica_lines = grep { /^mysql_replica_/ } split /\n/, $body;
+print "mysql_replica_ line count: " . scalar(@replica_lines) . "\n";
+EOF
+
+--echo # But other metrics should still be present
+--perl
+use strict;
+use warnings;
+my $body = `curl -s http://127.0.0.1:19116/metrics`;
+print +($body =~ /^mysql_global_status_uptime /m)
+  ? "has mysql_global_status_uptime: 1\n"
+  : "has mysql_global_status_uptime: 0\n";
+EOF
+
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

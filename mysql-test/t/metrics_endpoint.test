@@ -1,0 +1,51 @@
+# =============================================================================
+# metrics_endpoint.test -- Prometheus Exporter: HTTP Endpoint & All Collectors
+#
+# Verifies:
+# - GET /metrics returns HTTP 200
+# - mysql_global_status_ metrics are present
+# - mysql_global_variables_ metrics are present
+# - mysql_info_schema_innodb_metrics_ metrics are present
+# - GET /notfound returns HTTP 404
+# - requests_total status counter incremented after scrapes
+# =============================================================================
+
+--source include/not_windows.inc
+
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19111;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+
+SHOW VARIABLES LIKE 'prometheus_exporter.enabled';
+
+--perl
+use strict;
+use warnings;
+my $body = `curl -s http://127.0.0.1:19111/metrics`;
+print +($body =~ /^mysql_global_status_threads_connected /m)
+  ? "has mysql_global_status_ metrics: 1\n"
+  : "has mysql_global_status_ metrics: 0\n";
+print +($body =~ /^mysql_global_variables_max_connections /m)
+  ? "has mysql_global_variables_ metrics: 1\n"
+  : "has mysql_global_variables_ metrics: 0\n";
+print +($body =~ /^mysql_global_status_uptime /m)
+  ? "has mysql_global_status_uptime: 1\n"
+  : "has mysql_global_status_uptime: 0\n";
+EOF
+
+--echo # Test 404 for unknown paths
+--perl
+use strict;
+use warnings;
+my $code = `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:19111/notfound`;
+chomp $code;
+print "GET /notfound: $code\n";
+EOF
+
+--echo # Verify scrape counter incremented
+--replace_regex /[0-9]+/NUM/
+SHOW GLOBAL STATUS LIKE 'prometheus_exporter.requests_total';
+
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

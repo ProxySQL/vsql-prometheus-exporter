@@ -1,0 +1,49 @@
+# =============================================================================
+# scrape_counter.test -- Verify requests_total counter increments correctly
+#
+# Verifies:
+# - requests_total increments by exactly 3 after 3 scrapes
+# - scrape_duration_us is > 0 after the first scrape
+# - errors_total remains 0 after successful scrapes
+# =============================================================================
+
+--source include/not_windows.inc
+
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19115;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+
+--echo # Capture baseline counter
+SELECT VARIABLE_VALUE INTO @before FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'prometheus_exporter.requests_total';
+
+--echo # Issue exactly 3 scrapes
+--perl
+use strict;
+use warnings;
+`curl -s -o /dev/null http://127.0.0.1:19115/metrics`;
+`curl -s -o /dev/null http://127.0.0.1:19115/metrics`;
+`curl -s -o /dev/null http://127.0.0.1:19115/metrics`;
+print "scraped 3 times\n";
+EOF
+
+--echo # Capture counter after scrapes
+SELECT VARIABLE_VALUE INTO @after FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'prometheus_exporter.requests_total';
+
+--echo # Assert delta is exactly 3
+SELECT (@after - @before) = 3 AS counter_delta_is_three;
+
+--echo # Also verify scrape_duration_us is now > 0
+SELECT VARIABLE_VALUE > 0 AS scrape_duration_is_positive
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'prometheus_exporter.scrape_duration_us';
+
+--echo # And verify errors_total is still 0 (no errors on successful scrapes)
+SELECT VARIABLE_VALUE = 0 AS errors_total_is_zero
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'prometheus_exporter.errors_total';
+
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

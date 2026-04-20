@@ -1,0 +1,10 @@
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19116;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+# On a non-replica server, no mysql_replica_ metrics should appear
+mysql_replica_ line count: 0
+# But other metrics should still be present
+has mysql_global_status_uptime: 1
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

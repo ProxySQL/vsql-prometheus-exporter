@@ -1,0 +1,30 @@
+INSTALL EXTENSION prometheus_exporter;
+SET GLOBAL prometheus_exporter.port = 19115;
+SET GLOBAL prometheus_exporter.bind_address = '127.0.0.1';
+SET GLOBAL prometheus_exporter.enabled = ON;
+# Capture baseline counter
+SELECT VARIABLE_VALUE INTO @before FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'prometheus_exporter.requests_total';
+# Issue exactly 3 scrapes
+scraped 3 times
+# Capture counter after scrapes
+SELECT VARIABLE_VALUE INTO @after FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'prometheus_exporter.requests_total';
+# Assert delta is exactly 3
+SELECT (@after - @before) = 3 AS counter_delta_is_three;
+counter_delta_is_three
+1
+# Also verify scrape_duration_us is now > 0
+SELECT VARIABLE_VALUE > 0 AS scrape_duration_is_positive
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'prometheus_exporter.scrape_duration_us';
+scrape_duration_is_positive
+1
+# And verify errors_total is still 0 (no errors on successful scrapes)
+SELECT VARIABLE_VALUE = 0 AS errors_total_is_zero
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME = 'prometheus_exporter.errors_total';
+errors_total_is_zero
+1
+SET GLOBAL prometheus_exporter.enabled = OFF;
+UNINSTALL EXTENSION prometheus_exporter;

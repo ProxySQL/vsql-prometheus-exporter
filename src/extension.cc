@@ -669,12 +669,12 @@ VEF_GENERATE_ENTRY_POINTS(
                                    "IP address to bind the Prometheus endpoint",
                                    &g_bind_address, "127.0.0.1"))
         .status_var(
-            make_status_var_int("prometheus_exporter_requests_total",
+            make_status_var_int("requests_total",
                                 &g_requests_total))
         .status_var(
-            make_status_var_int("prometheus_exporter_errors_total", &g_errors_total))
+            make_status_var_int("errors_total", &g_errors_total))
         .status_var(make_status_var_int(
-            "prometheus_exporter_scrape_duration_microseconds",
+            "scrape_duration_us",
             &g_scrape_duration_us))
         .on_install<&on_install>()
         .on_uninstall<&on_uninstall>())

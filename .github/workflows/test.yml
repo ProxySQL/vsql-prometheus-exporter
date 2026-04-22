@@ -45,6 +45,7 @@ jobs:
 
       - name: Initialize datadir
         run: |
+          mkdir -p $PWD/var
           ./build/runtime_output_directory/mysqld --initialize-insecure --datadir=$PWD/var/mysqld.1
 
       - name: Start MySQL server

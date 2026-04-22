@@ -1,0 +1,96 @@
+name: test
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: villagesql-server
+
+    steps:
+      - name: Checkout VillageSQL server (tomas/dev)
+        uses: actions/checkout@v4
+        with:
+          repository: villagesql/villagesql-server
+          ref: tomas/dev
+          path: villagesql-server
+
+      - name: Checkout extension
+        uses: actions/checkout@v4
+        with:
+          path: extension
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cmake gcc make libtirpc-dev libcurl4-openssl-dev netcat-openbsd
+
+      - name: Configure VillageSQL
+        run: |
+          mkdir build && cd build
+          cmake .. \
+            -DWITH_DEBUG=1 \
+            -DWITH_UNIT_TESTS=ON \
+            -DWITH_ROUTER=OFF
+
+      - name: Build VillageSQL
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Initialize datadir
+        run: |
+          ./build/runtime_output_directory/mysqld --initialize-insecure --datadir=$PWD/var/mysqld.1
+
+      - name: Start MySQL server
+        run: |
+          ./build/runtime_output_directory/mysqld \
+            --datadir=$PWD/var/mysqld.1 \
+            --socket=$PWD/var/mysql.sock \
+            --port=3306 \
+            --log-error=$PWD/var/mysqld.log \
+            &>/dev/null &
+          echo "Waiting for MySQL to start..."
+          for i in {1..30}; do
+            if mysql -S $PWD/var/mysql.sock -u root -e "SELECT 1" 2>/dev/null; then
+              echo "MySQL is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Build extension
+        run: |
+          cd extension
+          mkdir build && cd build
+          cmake .. -DVillageSQL_BUILD_DIR=$PWD/../villagesql-server/build
+          make -j$(nproc)
+
+      - name: Install extension
+        run: |
+          mysql -S $PWD/var/mysql.sock -u root \
+            -e "INSTALL EXTENSION $PWD/extension/build/prometheus_exporter.veb"
+
+      - name: Run MTR tests
+        run: |
+          cd build/mysql-test
+          perl mysql-test-run.pl \
+            --suite=$PWD/../extension/mysql-test \
+            --parallel=auto \
+            --tmpdir=$PWD/var \
+            --socket=$PWD/../var/mysql.sock \
+            --report-features
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            build/mysql-test/var/log/*.log
+            villagesql-server/var/mysqld.log

@@ -84,8 +84,8 @@ jobs:
       - name: Run MTR tests
         run: |
           cp -r "$GITHUB_WORKSPACE/extension/mysql-test" "$PWD/mysql-test/suite/villagesql/prometheus_exporter"
-          cd $PWD/mysql-test
-          perl mysql-test-run.pl \
+          cd $PWD
+          ./build/mysql-test/mysql-test-run.pl \
             --do-suite=villagesql/prometheus_exporter \
             --parallel=auto \
             --tmpdir=$PWD/var \

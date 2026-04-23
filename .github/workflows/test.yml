@@ -71,22 +71,22 @@ jobs:
         run: |
           cd ../extension
           mkdir build && cd build
-          cmake .. -DVillageSQL_BUILD_DIR=$PWD/../../villagesql-server/build
+          cmake .. -DVillageSQL_BUILD_DIR=$PWD
           make -j$(nproc)
 
       - name: Install extension
         run: |
-          mysql -S $PWD/../var/mysql.sock -u root \
+          mysql -S $PWD/var/mysql.sock -u root \
             -e "INSTALL EXTENSION $PWD/../extension/build/prometheus_exporter.veb"
 
       - name: Run MTR tests
         run: |
           cd build/mysql-test
           perl mysql-test-run.pl \
-            --suite=$PWD/../../extension/mysql-test \
+            --suite=$PWD/../extension/mysql-test \
             --parallel=auto \
-            --tmpdir=$PWD/../var \
-            --socket=$PWD/../../var/mysql.sock \
+            --tmpdir=$PWD/var \
+            --socket=$PWD/var/mysql.sock \
             --report-features
 
       - name: Upload test logs on failure
@@ -96,4 +96,4 @@ jobs:
           name: test-logs
           path: |
             build/mysql-test/var/log/*.log
-            ../var/mysqld.log
+            $PWD/var/mysqld.log

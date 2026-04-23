@@ -70,23 +70,23 @@ jobs:
       - name: Build extension
         run: |
           cd ../extension
-          mkdir build && cd build
-          cmake .. -DVillageSQL_BUILD_DIR=$PWD
+          mkdir -p build && cd build
+          cmake .. -DVillageSQL_BUILD_DIR=$GITHUB_WORKSPACE/villagesql-server/build
           make -j$(nproc)
 
       - name: Install extension
         run: |
-          mysql -S $PWD/var/mysql.sock -u root \
-            -e "INSTALL EXTENSION $PWD/../extension/build/prometheus_exporter.veb"
+          mysql -S $GITHUB_WORKSPACE/villagesql-server/var/mysql.sock -u root \
+            -e "INSTALL EXTENSION $GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb"
 
       - name: Run MTR tests
         run: |
-          cd build/mysql-test
+          cd $GITHUB_WORKSPACE/villagesql-server/build/mysql-test
           perl mysql-test-run.pl \
-            --suite=$PWD/../extension/mysql-test \
+            --suite=$GITHUB_WORKSPACE/extension/mysql-test \
             --parallel=auto \
-            --tmpdir=$PWD/var \
-            --socket=$PWD/var/mysql.sock \
+            --tmpdir=$GITHUB_WORKSPACE/villagesql-server/var \
+            --socket=$GITHUB_WORKSPACE/villagesql-server/var/mysql.sock \
             --report-features
 
       - name: Upload test logs on failure
@@ -95,5 +95,5 @@ jobs:
         with:
           name: test-logs
           path: |
-            build/mysql-test/var/log/*.log
-            $PWD/var/mysqld.log
+            $GITHUB_WORKSPACE/villagesql-server/build/mysql-test/var/log/*.log
+            $GITHUB_WORKSPACE/villagesql-server/var/mysqld.log

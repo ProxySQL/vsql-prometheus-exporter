@@ -44,8 +44,8 @@ jobs:
           make -j$(nproc)
 
       - name: Build extension
+        working-directory: extension
         run: |
-          cd extension
           mkdir build && cd build
           cmake .. -DVillageSQL_BUILD_DIR=$GITHUB_WORKSPACE/villagesql-server/build
           make -j$(nproc)

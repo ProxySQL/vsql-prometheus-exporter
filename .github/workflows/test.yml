@@ -76,8 +76,8 @@ jobs:
 
       - name: Install extension
         run: |
-          mysql -S $GITHUB_WORKSPACE/villagesql-server/var/mysql.sock -u root \
-            -e "INSTALL EXTENSION $GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb"
+          echo "Installing extension from: $GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb"
+          mysql -S "$GITHUB_WORKSPACE/villagesql-server/var/mysql.sock" -u root -e "INSTALL EXTENSION $GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb"
 
       - name: Run MTR tests
         run: |

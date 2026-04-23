@@ -52,11 +52,13 @@ jobs:
 
       - name: Start MySQL server
         run: |
+          mkdir -p $PWD/lib/veb
           ./build/runtime_output_directory/mysqld \
             --datadir=$PWD/var/mysqld.1 \
             --socket=$PWD/var/mysql.sock \
             --port=3306 \
             --log-error=$PWD/var/mysqld.log \
+            --veb-dir=$PWD/lib/veb \
             &>/dev/null &
           echo "Waiting for MySQL to start..."
           for i in {1..30}; do
@@ -76,10 +78,7 @@ jobs:
 
       - name: Install extension
         run: |
-          echo "Copying VEB to veb_dir..."
-          mkdir -p "$PWD/lib/veb"
           cp "$GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb" "$PWD/lib/veb/"
-          echo "Installing extension..."
           mysql -S "$PWD/var/mysql.sock" -u root -e "INSTALL EXTENSION prometheus_exporter"
 
       - name: Run MTR tests

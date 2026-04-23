@@ -57,8 +57,10 @@ jobs:
           cp $GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb $VEB_DIR/
 
           # Copy test files into the server's test suite
-          cp -r $GITHUB_WORKSPACE/extension/mysql-test/t $GITHUB_WORKSPACE/villagesql-server/mysql-test/suite/villagesql/prometheus_exporter/t
-          cp -r $GITHUB_WORKSPACE/extension/mysql-test/r $GITHUB_WORKSPACE/villagesql-server/mysql-test/suite/villagesql/prometheus_exporter/r
+          SUITE_DIR=$GITHUB_WORKSPACE/villagesql-server/mysql-test/suite/villagesql/prometheus_exporter
+          mkdir -p $SUITE_DIR/t $SUITE_DIR/r
+          cp $GITHUB_WORKSPACE/extension/mysql-test/t/*.test $SUITE_DIR/t/
+          cp $GITHUB_WORKSPACE/extension/mysql-test/r/*.result $SUITE_DIR/r/
 
           cd build
           perl ./mysql-test/mysql-test-run.pl \

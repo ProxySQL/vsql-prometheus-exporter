@@ -83,12 +83,13 @@ jobs:
 
       - name: Run MTR tests
         run: |
-          cd $GITHUB_WORKSPACE/villagesql-server/build/mysql-test
+          cp -r "$GITHUB_WORKSPACE/extension/mysql-test" "$PWD/mysql-test/suite/villagesql/prometheus_exporter"
+          cd $PWD/mysql-test
           perl mysql-test-run.pl \
-            --suite=$GITHUB_WORKSPACE/extension/mysql-test \
+            --do-suite=villagesql/prometheus_exporter \
             --parallel=auto \
-            --tmpdir=$GITHUB_WORKSPACE/villagesql-server/var \
-            --socket=$GITHUB_WORKSPACE/villagesql-server/var/mysql.sock \
+            --tmpdir=$PWD/var \
+            --socket=$PWD/var/mysql.sock \
             --report-features
 
       - name: Upload test logs on failure
@@ -97,5 +98,5 @@ jobs:
         with:
           name: test-logs
           path: |
-            $GITHUB_WORKSPACE/villagesql-server/build/mysql-test/var/log/*.log
-            $GITHUB_WORKSPACE/villagesql-server/var/mysqld.log
+            $PWD/mysql-test/var/log/*.log
+            $PWD/var/mysqld.log

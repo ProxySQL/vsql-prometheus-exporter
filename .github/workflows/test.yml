@@ -77,10 +77,10 @@ jobs:
       - name: Install extension
         run: |
           echo "Copying VEB to veb_dir..."
-          mkdir -p "$GITHUB_WORKSPACE/villagesql-server/lib/veb"
-          cp "$GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb" "$GITHUB_WORKSPACE/villagesql-server/lib/veb/"
+          mkdir -p "$PWD/lib/veb"
+          cp "$GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb" "$PWD/lib/veb/"
           echo "Installing extension..."
-          mysql -S "$GITHUB_WORKSPACE/villagesql-server/var/mysql.sock" -u root -e "INSTALL EXTENSION prometheus_exporter"
+          mysql -S "$PWD/var/mysql.sock" -u root -e "INSTALL EXTENSION prometheus_exporter"
 
       - name: Run MTR tests
         run: |

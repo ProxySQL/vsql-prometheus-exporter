@@ -1,0 +1,76 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: villagesql-server
+
+    steps:
+      - name: Checkout VillageSQL server (tomas/dev)
+        uses: actions/checkout@v4
+        with:
+          repository: villagesql/villagesql-server
+          ref: tomas/dev
+          path: villagesql-server
+
+      - name: Checkout extension
+        uses: actions/checkout@v4
+        with:
+          path: extension
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cmake gcc make libtirpc-dev libcurl4-openssl-dev
+
+      - name: Configure VillageSQL
+        run: |
+          mkdir build && cd build
+          cmake .. \
+            -DWITH_DEBUG=OFF \
+            -DWITH_UNIT_TESTS=OFF \
+            -DWITH_ROUTER=OFF
+
+      - name: Build VillageSQL
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Build extension
+        working-directory: extension
+        run: |
+          mkdir build && cd build
+          cmake .. -DVillageSQL_BUILD_DIR=$GITHUB_WORKSPACE/villagesql-server/build
+          make -j$(nproc)
+
+      - name: Run MTR tests
+        run: |
+          VEB_DIR=$GITHUB_WORKSPACE/veb
+          mkdir -p $VEB_DIR
+          cp $GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb $VEB_DIR/
+
+          SUITE_DIR=$GITHUB_WORKSPACE/villagesql-server/mysql-test/suite/villagesql/prometheus_exporter
+          mkdir -p $SUITE_DIR/t $SUITE_DIR/r
+          cp $GITHUB_WORKSPACE/extension/mysql-test/t/*.test $SUITE_DIR/t/
+          cp $GITHUB_WORKSPACE/extension/mysql-test/r/*.result $SUITE_DIR/r/
+
+          cd build
+          perl ./mysql-test/mysql-test-run.pl \
+            --do-suite=villagesql/prometheus_exporter \
+            --parallel=1 \
+            --nounit-tests \
+            --mysqld=--veb-dir=$VEB_DIR
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: extension/build/prometheus_exporter.veb
+          generate_release_notes: true

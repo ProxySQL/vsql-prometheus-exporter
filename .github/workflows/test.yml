@@ -35,7 +35,7 @@ jobs:
           mkdir build && cd build
           cmake .. \
             -DWITH_DEBUG=1 \
-            -DWITH_UNIT_TESTS=ON \
+            -DWITH_UNIT_TESTS=OFF \
             -DWITH_ROUTER=OFF
 
       - name: Build VillageSQL
@@ -43,49 +43,31 @@ jobs:
           cd build
           make -j$(nproc)
 
-      - name: Initialize datadir
-        run: |
-          mkdir -p $PWD/var
-          ./build/runtime_output_directory/mysqld --initialize-insecure --datadir=$PWD/var/mysqld.1
-
-      - name: Start MySQL server
-        run: |
-          ./build/runtime_output_directory/mysqld \
-            --datadir=$PWD/var/mysqld.1 \
-            --socket=$PWD/var/mysql.sock \
-            --port=3306 \
-            --log-error=$PWD/var/mysqld.log \
-            &>/dev/null &
-          echo "Waiting for MySQL to start..."
-          for i in {1..30}; do
-            if mysql -S $PWD/var/mysql.sock -u root -e "SELECT 1" 2>/dev/null; then
-              echo "MySQL is ready"
-              break
-            fi
-            sleep 1
-          done
-
       - name: Build extension
+        working-directory: extension
         run: |
-          cd extension
           mkdir build && cd build
-          cmake .. -DVillageSQL_BUILD_DIR=$PWD/../villagesql-server/build
+          cmake .. -DVillageSQL_BUILD_DIR=$GITHUB_WORKSPACE/villagesql-server/build
           make -j$(nproc)
-
-      - name: Install extension
-        run: |
-          mysql -S $PWD/var/mysql.sock -u root \
-            -e "INSTALL EXTENSION $PWD/extension/build/prometheus_exporter.veb"
 
       - name: Run MTR tests
         run: |
-          cd build/mysql-test
-          perl mysql-test-run.pl \
-            --suite=$PWD/../extension/mysql-test \
-            --parallel=auto \
-            --tmpdir=$PWD/var \
-            --socket=$PWD/../var/mysql.sock \
-            --report-features
+          VEB_DIR=$GITHUB_WORKSPACE/veb
+          mkdir -p $VEB_DIR
+          cp $GITHUB_WORKSPACE/extension/build/prometheus_exporter.veb $VEB_DIR/
+
+          # Copy test files into the server's test suite
+          SUITE_DIR=$GITHUB_WORKSPACE/villagesql-server/mysql-test/suite/villagesql/prometheus_exporter
+          mkdir -p $SUITE_DIR/t $SUITE_DIR/r
+          cp $GITHUB_WORKSPACE/extension/mysql-test/t/*.test $SUITE_DIR/t/
+          cp $GITHUB_WORKSPACE/extension/mysql-test/r/*.result $SUITE_DIR/r/
+
+          cd build
+          perl ./mysql-test/mysql-test-run.pl \
+            --do-suite=villagesql/prometheus_exporter \
+            --parallel=1 \
+            --nounit-tests \
+            --mysqld=--veb-dir=$VEB_DIR
 
       - name: Upload test logs on failure
         if: failure()
@@ -93,5 +75,4 @@ jobs:
         with:
           name: test-logs
           path: |
-            build/mysql-test/var/log/*.log
-            villagesql-server/var/mysqld.log
+            villagesql-server/build/mysql-test/var/log/*.log
